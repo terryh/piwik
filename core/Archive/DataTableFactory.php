@@ -157,6 +157,8 @@ class DataTableFactory
      */
     public function make($index, $resultIndices)
     {
+        $keyMetadata = $this->getDefaultMetadata();
+
         if (empty($resultIndices)) {
             // for numeric data, if there's no index (and thus only 1 site & period in the query),
             // we want to display every queried metric name
@@ -166,9 +168,9 @@ class DataTableFactory
                 $index = $this->defaultRow;
             }
 
-            $dataTable = $this->createDataTable($index, $keyMetadata = array());
+            $dataTable = $this->createDataTable($index, $keyMetadata);
         } else {
-            $dataTable = $this->createDataTableMapFromIndex($index, $resultIndices, $keyMetadata = array());
+            $dataTable = $this->createDataTableMapFromIndex($index, $resultIndices, $keyMetadata);
         }
 
         $this->transformMetadata($dataTable);
@@ -292,6 +294,16 @@ class DataTableFactory
         return $result;
     }
 
+    private function getDefaultMetadata()
+    {
+        reset($this->periods);
+
+        return array(
+            DataTableFactory::TABLE_METADATA_SITE_INDEX => reset($this->sitesId),
+            DataTableFactory::TABLE_METADATA_PERIOD_INDEX => key($this->periods),
+        );
+    }
+
     /**
      * Creates a DataTable instance from an index row.
      *
@@ -306,7 +318,9 @@ class DataTableFactory
         } else {
             $result = $this->makeFromMetricsArray($data);
         }
-        $this->setTableMetadata($keyMetadata, $result);
+
+        $result->setMetadataValues($keyMetadata);
+
         return $result;
     }
 
@@ -385,29 +399,6 @@ class DataTableFactory
             return $this->periods[$label]->getPrettyString();
         }
         return $label;
-    }
-
-    /**
-     * @param $keyMetadata
-     * @param $result
-     */
-    private function setTableMetadata($keyMetadata, DataTableInterface $result)
-    {
-        if (!isset($keyMetadata[DataTableFactory::TABLE_METADATA_SITE_INDEX])) {
-            $keyMetadata[DataTableFactory::TABLE_METADATA_SITE_INDEX] = reset($this->sitesId);
-        }
-
-        if (!isset($keyMetadata[DataTableFactory::TABLE_METADATA_PERIOD_INDEX])) {
-            reset($this->periods);
-            $keyMetadata[DataTableFactory::TABLE_METADATA_PERIOD_INDEX] = key($this->periods);
-        }
-
-        // Note: $result can be a DataTable\Map
-        $result->filter(function (DataTable $table) use ($keyMetadata) {
-            foreach ($keyMetadata as $name => $value) {
-                $table->setMetadata($name, $value);
-            }
-        });
     }
 
     /**
