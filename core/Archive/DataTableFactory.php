@@ -225,7 +225,7 @@ class DataTableFactory
         }
 
         // set table metadata
-        $table->setMetadataValues(array_merge(DataCollection::getDataRowMetadata($blobRow), $keyMetadata));
+        $table->setAllTableMetadata(array_merge(DataCollection::getDataRowMetadata($blobRow), $keyMetadata));
 
         if ($this->expandDataTable) {
             $table->enableRecursiveFilters();
@@ -267,27 +267,27 @@ class DataTableFactory
      * @param array $keyMetadata The metadata to add to the table when it's created.
      * @return DataTable\Map
      */
-    private function createDataTableMapFromIndex($index, $resultIndices, $keyMetadata = array())
+    private function createDataTableMapFromIndex($index, $resultIndices, $keyMetadata)
     {
-        $resultIndexLabel = reset($resultIndices);
+        $result = new DataTable\Map();
+        $result->setKeyName(reset($resultIndices));
         $resultIndex = key($resultIndices);
 
         array_shift($resultIndices);
 
-        $result = new DataTable\Map();
-        $result->setKeyName($resultIndexLabel);
+        $hasIndices = !empty($resultIndices);
 
         foreach ($index as $label => $value) {
-            if ($resultIndex == DataTableFactory::TABLE_METADATA_PERIOD_INDEX) {
-                $keyMetadata[$resultIndex] = $this->periods[$label];
-            } elseif ($resultIndex == DataTableFactory::TABLE_METADATA_SITE_INDEX) {
+            if ($resultIndex === DataTableFactory::TABLE_METADATA_SITE_INDEX) {
                 $keyMetadata[$resultIndex] = new Site($label);
+            } else {
+                $keyMetadata[$resultIndex] = $this->periods[$label];
             }
 
-            if (empty($resultIndices)) {
-                $newTable = $this->createDataTable($value, $keyMetadata);
-            } else {
+            if ($hasIndices) {
                 $newTable = $this->createDataTableMapFromIndex($value, $resultIndices, $keyMetadata);
+            } else {
+                $newTable = $this->createDataTable($value, $keyMetadata);
             }
 
             $result->addTable($newTable, $this->prettifyIndexLabel($resultIndex, $label));
