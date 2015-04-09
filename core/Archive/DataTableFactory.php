@@ -411,8 +411,9 @@ class DataTableFactory
             ) {
                 $name = reset($this->dataNames);
                 $table->addRow(new Row(array(Row::COLUMNS => array($name => 0))));
-                $table->setAllTableMetadata($keyMetadata);
             }
+
+            $table->setAllTableMetadata($keyMetadata);
         }
 
         $result = $table;
