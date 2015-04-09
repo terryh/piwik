@@ -504,14 +504,4 @@ class Map implements DataTableInterface
         }
         return array();
     }
-
-    /**
-     * See {@link DataTable::setMetadataValues()}.
-     */
-    public function setMetadataValues($values)
-    {
-        foreach ($this->array as $childTable) {
-            $childTable->setMetadataValues($values);
-        }
-    }
 }
