@@ -238,13 +238,7 @@ class API extends \Piwik\Plugin\API
         }
 
         // get the data
-        // $dataTable instanceOf Set
-        $dataTable = $archive->getDataTableFromNumeric($fieldsToGet);
-
-        if ($multipleWebsitesRequested && count($idSites) === 1 && Range::isMultiplePeriod($date, $period)) {
-        } else {
-            $dataTable = $this->mergeDataTableMapAndPopulateLabel($idSites, $multipleWebsitesRequested, $dataTable);
-        }
+        $dataTable = $archive->getDataTableFromNumericAndMergeChildren($fieldsToGet);
 
         if ($dataTable instanceof DataTable\Map) {
             foreach ($dataTable->getDataTables() as $table) {
@@ -273,13 +267,7 @@ class API extends \Piwik\Plugin\API
 
             $pastArchive = Archive::build($idSites, $period, $strLastDate, $segment, $_restrictSitesToLogin);
 
-            $pastData = $pastArchive->getDataTableFromNumeric($fieldsToGet);
-
-            if ($multipleWebsitesRequested && count($idSites) === 1 && Range::isMultiplePeriod($date, $period)) {
-
-            } else {
-                $pastData = $this->mergeDataTableMapAndPopulateLabel($idSites, $multipleWebsitesRequested, $pastData);
-            }
+            $pastData = $pastArchive->getDataTableFromNumericAndMergeChildren($fieldsToGet);
 
             // use past data to calculate evolution percentages
             $this->calculateEvolutionPercentages($dataTable, $pastData, $apiMetrics);
@@ -488,16 +476,23 @@ class API extends \Piwik\Plugin\API
      */
     private function addMissingWebsites($dataTable, $fieldsToGet, $sitesToProblablyAdd)
     {
+        if (count($sitesToProblablyAdd) === $dataTable->getRowsCount()) {
+            // all prearchived
+            return;
+        }
+
         $siteIdsInDataTable = array();
         foreach ($dataTable->getRowsWithoutSummaryRow() as $row) {
             /** @var DataTable\Row $row */
             $siteIdsInDataTable[] = $row->getColumn('label');
         }
 
-        foreach ($sitesToProblablyAdd as $site) {
-            if (!in_array($site['idsite'], $siteIdsInDataTable)) {
-                $siteRow = array_combine($fieldsToGet, array_pad(array(), count($fieldsToGet), 0));
-                $siteRow['label'] = (int) $site['idsite'];
+        $siteIds = array_keys($sitesToProblablyAdd);
+        $siteRow = array_combine($fieldsToGet, array_pad(array(), count($fieldsToGet), 0));
+
+        foreach ($siteIds as $siteId) {
+            if (!in_array($siteId, $siteIdsInDataTable)) {
+                $siteRow['label'] = (int)$siteId;
                 $dataTable->addRow(new Row(array(Row::COLUMNS => $siteRow)));
             }
         }

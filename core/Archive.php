@@ -13,6 +13,8 @@ use Piwik\Archive\Parameters;
 use Piwik\ArchiveProcessor\Rules;
 use Piwik\Archive\ArchiveInvalidator;
 use Piwik\DataAccess\ArchiveSelector;
+use Piwik\DataTable\Map;
+use Piwik\DataTable\Row;
 use Piwik\Period\Factory as PeriodFactory;
 
 /**
@@ -354,6 +356,70 @@ class Archive
     {
         $data = $this->get($names, 'numeric');
         return $data->getDataTable($this->getResultIndices());
+    }
+
+
+    /**
+     * Queries and returns metric data in a DataTable instance.
+     *
+     * If multiple sites were requested in {@link build()} or {@link factory()} the result will
+     * be a DataTable\Map that is indexed by site ID.
+     *
+     * If multiple periods were requested in {@link build()} or {@link factory()} the result will
+     * be a {@link DataTable\Map} that is indexed by period.
+     *
+     * The site ID index is always first, so if multiple sites & periods were requested, the result
+     * will be a {@link DataTable\Map} indexed by site ID which contains {@link DataTable\Map} instances that are
+     * indexed by period.
+     *
+     * _Note: Every DataTable instance returned will have at most one row in it. The contents of each
+     *        row will be the requested metrics for the appropriate site and period._
+     *
+     * @param string|array $names One or more archive names, eg, 'nb_visits', 'Referrers_distinctKeywords',
+     *                            etc.
+     * @return DataTable|DataTable\Map A DataTable if multiple sites and periods were not requested.
+     *                                 An appropriately indexed DataTable\Map if otherwise.
+     */
+    public function getDataTableFromNumericAndMergeChildren($names)
+    {
+        $data  = $this->get($names, 'numeric');
+        $resultIndexes = $this->getResultIndices();
+        $index = $data->getIndexedArray($resultIndexes);
+
+        if (count($resultIndexes) == 2) {
+
+            $tables = array();
+            foreach ($this->params->getPeriods() as $period) {
+                $tables[$period->getRangeString()] = new DataTable();
+            }
+
+            foreach ($index as $idsite => $table) {
+                foreach ($table as $period => $row) {
+                    if (!empty($row)) {
+                        $row['label'] = $idsite;
+                        $tables[$period]->addRow(new Row(array(Row::COLUMNS => $row)));
+                    }
+                }
+            }
+
+            $dataTable = new Map();
+            foreach ($this->params->getPeriods() as $period) {
+                $dataTable->addTable($tables[$period->getRangeString()], $period->getPrettyString());
+            }
+
+        } else {
+
+            $dataTable = new DataTable();
+            foreach ($index as $i => $row) {
+                if (!empty($row)) {
+                    $row['label'] = $i;
+                    $dataTable->addRow(new Row(array(Row::COLUMNS => $row)));
+                }
+            }
+
+        }
+
+        return $dataTable;
     }
 
     /**
